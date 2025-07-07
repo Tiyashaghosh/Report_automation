@@ -1,0 +1,217 @@
+import email
+import imaplib
+import os
+from email.message import EmailMessage
+import magic
+from dotenv import load_dotenv, find_dotenv
+import smtplib
+import win32com.client as win32
+import time
+import pandas as pd
+import socket
+
+# Load the environment variables
+dotenv_path = find_dotenv()
+load_dotenv(dotenv_path)
+my_email = os.getenv('EMAIL')              # Load the email it will read mails from
+my_password = os.getenv('APP_PASSWORD')   # Load the app password
+imap_server = os.getenv('IMAP_SERVER')    # Imap server the code connects to
+imap_port = int(os.getenv('IMAP_PORT'))   # Imap port - 993
+smtp_server = os.getenv('SMTP_SERVER')    # Smtp server the code connects to
+smtp_port = int(os.getenv('SMTP_PORT'))   # Smtp port - 587
+download_folder = os.getenv('DOWNLOAD_PATH')
+
+
+# Define a function to connect to the server
+def connect():
+    try:
+        imap = imaplib.IMAP4_SSL(imap_server,imap_port)
+        imap.login(my_email, my_password)
+        imap.select("Inbox")
+        return imap
+    except imaplib.IMAP4.error:
+        print("Login failed. Please check your email and password.")
+    except Exception as e:
+        print("Error connecting to the server.", e)
+        return None
+
+
+# Function to search the required email ids
+def search_emails(imap):
+  _, mail_ids = imap.search(None, 'UNSEEN', 'FROM', '"xyz@gmail.com"', 'SINCE', '07-Jul-2025')
+
+    return [mail_id.decode() for mail_id in mail_ids[0].split()]
+
+
+# Function to save email attachments in their original format
+def save_attachments(part, file_name):
+    try:
+        original_file_path = os.path.join(download_folder, file_name)
+        if not os.path.exists(original_file_path):
+            with open(original_file_path, 'wb') as f:
+                f.write(part.get_payload(decode=True))
+                f.flush()
+                time.sleep(0.5)
+            return original_file_path
+        else:
+            print(f"File already exists: {file_name}")
+            return original_file_path  # or return None if you want to skip
+    except Exception as e:
+        print(f"Error saving attachment: {file_name}", e)
+        return None
+
+
+# Function to convert these attachments
+def conversion(file_path):
+    if not os.path.exists(file_path):
+        print(f"File does not exist: {file_path}")
+        return None
+
+    # file_name = os.path.basename(file_path)
+    excel = win32.gencache.EnsureDispatch('Excel.Application')
+    excel.Visible = False
+    excel.DisplayAlerts = False  # Suppress extension mismatch popup
+
+    try:
+        print(f"Opening file : {file_path}")
+        wb = excel.Workbooks.Open(file_path)
+        new = os.path.splitext(file_path)[0]
+        print(new)
+        new_path = new + '.xlsx'
+        wb.SaveAs(new_path, FileFormat=51)
+        wb.Close(SaveChanges=False)
+        os.remove(file_path)
+        print(f"Converted successfully to: {new_path}")
+        return new_path
+    except Exception as e:
+        print(f"Excel conversion failed: {e}")
+    finally:
+        excel.Quit()
+
+
+# Function which will send emails
+def send_email(email_list, subject, body, attachment_list):
+    try:
+        # Connect to the SMTP server
+        with smtplib.SMTP(smtp_server, smtp_port) as connection:
+            connection.starttls()
+
+            try:
+                connection.login(my_email, my_password)
+            except smtplib.SMTPAuthenticationError:
+                print("Login failed. Please check your email or app password.")
+                return
+            except smtplib.SMTPException as e:
+                print(f"Unexpected SMTP login error: {e}")
+                return
+
+            for email_id in email_list:
+                try:
+                    msg = EmailMessage()
+                    msg['Subject'] = ''.join(subject.splitlines())
+                    msg['From'] = my_email
+                    msg['To'] = email_id
+                    msg.set_content(body)
+
+                    for attachment in attachment_list:
+                        try:
+                            maintype, subtype = magic.from_file(attachment, mime=True).split('/')
+                            filename = os.path.basename(attachment)
+
+                            with open(attachment, 'rb') as f:
+                                file_data = f.read()
+
+                            msg.add_attachment(file_data, maintype=maintype, subtype=subtype, filename=filename)
+                        except FileNotFoundError:
+                            print(f"Attachment not found: {attachment}")
+                        except Exception as e:
+                            print(f"Failed to attach file {attachment}: {e}")
+
+                    connection.send_message(msg)
+                    time.sleep(1)
+                    print(f"Email sent to: {email_id}")
+
+                except smtplib.SMTPRecipientsRefused:
+                    print(f"Recipient refused: {email_id}")
+                except smtplib.SMTPDataError as e:
+                    print(f"SMTP data error for {email_id}: {e}")
+                except Exception as inner_e:
+                    print(f"Failed to send to {email_id}: {inner_e}")
+
+    except socket.gaierror:
+        print("Network error: Unable to resolve SMTP server address.")
+    except socket.timeout:
+        print("Network timeout while connecting to SMTP server.")
+    except smtplib.SMTPConnectError:
+        print("Failed to connect to SMTP server.")
+    except Exception as e:
+        print(f"SMTP connection or setup failed: {e}")
+
+
+def process_email(message):  # Function which reads the mails, save attachments and converts them accordingly
+    try:
+        print("-----------------------------------")
+        print(f"From : {message.get('From')}")
+        print(f"To : {message.get('To')}")
+        print(f"Bcc : {message.get('Bcc')}")
+        print(f"Date : {message.get('Date')}")
+        print(f"Subject: {message.get('Subject')}")
+
+        body_data = None
+        converted_files = []
+        for part in message.walk():
+            # Read the body of the email
+            if body_data is None and (
+                    part.get_content_type() in ['text/plain', 'text/html']) and part.get_content_disposition() is None:
+                body_data = part.get_payload(decode=True).decode(errors='ignore')
+                print("Body: \n", body_data)
+
+
+            if part.get_filename():
+                original_file_path = save_attachments(part, part.get_filename())
+                print(original_file_path)
+                if original_file_path:
+                    converted_file_path = conversion(file_path=original_file_path)
+                    converted_files.append(converted_file_path)
+
+        emails = (pd.read_csv('emails.csv')['email_id']).tolist()
+
+        if converted_files:
+            send_email(
+                email_list=emails,
+                subject=message['Subject'],
+                body=body_data or " ",
+                attachment_list=converted_files
+            )
+    except Exception as e:
+        print("Error processing message:", e)
+
+
+def main():
+    imap = connect()
+    if not imap:
+        print("Could not connect to server.")
+        return
+
+    try:
+        email_ids = search_emails(imap)
+        print(f"Found {len(email_ids)} emails.")
+        for mail_id in email_ids:
+            try:
+                status, msg_data = imap.fetch(mail_id, '(RFC822)')
+                if status == 'OK':
+                    raw_email = msg_data[0][1]  # Tuple in a list
+                    message = email.message_from_bytes(raw_email)
+                    process_email(message)
+                    imap.store(mail_id, '+FLAGS','\\Seen')  # After processing the email it marks it as read to not process it again
+            except Exception as inner_e:
+                print(f"Failed to process email ID {mail_id}: {inner_e}")
+    finally:
+        try:
+            imap.logout()
+        except Exception as logout_err:
+            print("Error during logout:", logout_err)
+
+
+if __name__ == "__main__":
+    main()
