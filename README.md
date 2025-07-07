@@ -1,30 +1,29 @@
 # Report_automation
 Using python and it's libraries this project is build to read emails containing attachments which are html based file with .xls extension. 
 📦 Python Libraries & Technologies Used
-1. Email Handling
+📬 Email Handling
 imaplib – Connects to the email server using the IMAP protocol to read emails.
 
 smtplib – Sends emails using the SMTP protocol.
 
-email – Parses and creates email messages (email.message.EmailMessage).
+email – Parses and creates email messages using email.message.EmailMessage.
 
 email.message_from_bytes() – Converts raw byte data into a readable email object.
 
-2. Environment Management
-dotenv (python-dotenv) – Loads configuration variables from a .env file to keep sensitive info (email credentials, server configs) safe and configurable.
+🔐 Environment Management
+python-dotenv (dotenv) – Loads configuration variables from a .env file (e.g., credentials, server configs).
 
-3. File Handling & Conversion
-os – File and path operations (checking existence, removing files).
+📁 File Handling & Conversion
+os – Handles file and path operations (like checking existence, deleting files).
 
-magic (usually python-magic) – Detects MIME types of files to determine proper attachment handling.
+python-magic (magic) – Detects MIME types of attachments to ensure correct handling.
 
-win32com.client (from pywin32) – Interacts with Windows COM objects. Used here to control Microsoft Excel for converting files to .xlsx.
+pywin32 (win32com.client) – Automates Microsoft Excel via COM interface to convert file formats (e.g., .xls to .xlsx). Requires Windows and MS Office.
 
-4. Data Handling
-pandas – Reads email lists from a CSV file (emails.csv).
+📊 Data Handling
+pandas – Reads and processes email lists from a CSV file (emails.csv).
 
-5. Time & Network
-time – Adds delays, helpful for sending emails smoothly.
+⏱️ Timing & Network
+time – Adds delays between operations (e.g., email sending).
 
-socket – Handles low-level network error exceptions during SMTP communication.
-
+socket – Manages network-level exceptions (e.g., SMTP resolution failures).
