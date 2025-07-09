@@ -1,32 +1,62 @@
 📩 Report Automation
 This project uses Python and its libraries to automatically read emails containing attachments—specifically .xls files that are actually HTML-based reports.
-The script downloads these attachments, converts them to .xlsx, and forwards them to a predefined list of recipients.
+The script downloads these attachments, converts them to .xlsx, freezes pane and forwards them to a user chosen list of recipients.
 
-📦 Python Libraries & Technologies Used
-📬 Email Handling
-imaplib – Connects to the email server using the IMAP protocol to read emails.
+📦ech Stack
+Python 3.x
 
-smtplib – Sends emails using the SMTP protocol.
+IMAP & SMTP (for email handling)
 
-email – Parses and creates email messages using email.message.EmailMessage.
+openpyxl, pandas (for Excel operations)
 
-email.message_from_bytes() – Converts raw byte data into a readable email object.
+win32com (Excel automation on Windows)
 
-🔐 Environment Management
-python-dotenv (dotenv) – Loads configuration variables from a .env file (e.g., credentials, server configs).
+dotenv (for environment variable management)
 
-📁 File Handling & Conversion
-os – Handles file and path operations (e.g., checking existence, deleting files).
+python-magic (for MIME type detection)
+## 🚀 Features
 
-python-magic (magic) – Detects MIME types of attachments to ensure correct handling.
+- Connects to IMAP and SMTP servers securely using credentials from `.env`.
+- Searches unseen emails based on a subject keyword and sender domain.
+- Downloads and saves email attachments.
+- Converts legacy `.xls` Excel files to `.xlsx` using `win32com`.
+- Prompts the user to freeze panes (like "A1", "B5") in the processed Excel file.
+- Sends the final files to a user-defined list of recipients (from a CSV).
+- Marks processed emails as **read** to avoid reprocessing.
 
-pywin32 (win32com.client) – Automates Microsoft Excel via COM interface to convert file formats (e.g., .xls to .xlsx).
-⚠️ Requires Windows OS and Microsoft Excel installed.
+  ## 🧠 Project Structure
 
-📊 Data Handling
-pandas – Reads and processes email lists from a CSV file (emails.csv).
+📦project-root
+┣ 📄attachments.py # Download & convert email attachments
+┣ 📄config.py # Loads environment variables from .env
+┣ 📄imap_handler.py # Handles IMAP connection & email fetching
+┣ 📄smtp_handler.py # Sends email using SMTP with attachments
+┣ 📄processing.py # Main email parsing and file handling logic
+┣ 📄main.py # Script entry point
+┣ 📄Requirements.txt # Python dependencies
+┗ 📄.env # Your local environment configuration
 
-⏱️ Timing & Network
-time – Adds delays between operations (e.g., email sending).
+Install the dependencies
+pip install -r Requirements.txt
 
-socket – Handles low-level network exceptions (e.g., SMTP resolution failures, timeouts).
+Set up your .env file
+EMAIL=your_email@gmail.com
+APP_PASSWORD=your_app_password
+IMAP_SERVER=imap.gmail.com
+IMAP_PORT=993
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+DOWNLOAD_PATH=absolute_or_relative_path_to_save_files
+
+Sample Email CSV Format
+email_id
+john@example.com
+jane@example.com
+
+❗Important Notes
+This script works only on Windows due to the use of win32com.client.
+
+It expects email attachments in Excel .xls format.
+
+Your environment must have Microsoft Excel installed for conversion.
+
