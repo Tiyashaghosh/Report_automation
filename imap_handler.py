@@ -21,7 +21,7 @@ def connect():
 def search_emails(imap):
     subject_keyword = input("Enter part of the subject to search for: ").strip()
 
-    _, mail_ids = imap.search(None, 'UNSEEN', 'FROM', '"@bergerindia.com"', 'SUBJECT',f'"{subject_keyword}"')
+    _, mail_ids = imap.search(None, 'UNSEEN', 'FROM', '"xyz@domain.com"', 'SUBJECT',f'"{subject_keyword}"')
 
     return [mail_id.decode() for mail_id in mail_ids[0].split()]
 
